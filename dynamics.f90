@@ -6,6 +6,7 @@
       double precision, allocatable :: mass(:)
       double precision, allocatable :: distance(:,:)
       double precision, allocatable :: velocity(:,:)
+      double precision, allocatable :: acceleration(:,:)
       double precision :: epsilon, sigma, Vljtot, Ttot, Etot
 ! In this program will be considered 5 Xenon atoms, the epsilon value is 1.77 kJ/mol
 ! the sigma value is 4.10 Angstroms
@@ -32,6 +33,10 @@
       write(6,*) Ttot
       Etot=E(Vljtot,Ttot)
       write(6,*) Etot
+      call compute_acc(Natoms, coord, mass, distance, acceleration, sigma, epsilon)
+!      DO i=1,Natoms
+!        write(6, *) (acceleration(i,j), j=1,3)
+!      END DO
 contains
       integer function read_Natoms(input_file) result(atoms)
       implicit none
@@ -140,4 +145,39 @@ contains
       Energy=Vljtot+Ttot
       end function E
 
+      subroutine compute_acc(Natoms, coord, mass, distance, acceleration, sigma, epsilon)
+      implicit none
+      integer, intent(in) :: Natoms
+      double precision acc, Uexp6, accith
+      integer i, j , k, i_stat
+      double precision, intent(in) :: epsilon, sigma
+      double precision, intent(in) :: coord(Natoms,3)
+      double precision, intent(in) :: mass(Natoms)
+      double precision, intent(in) :: distance(Natoms,Natoms)
+      double precision, allocatable, intent(out) :: acceleration(:,:)
+
+      allocate(acceleration(Natoms,3), stat=i_stat)
+      if (i_stat /= 0) then
+                print *,  "Memory allocation failed, for acceleration!"
+                stop
+      end if
+
+      DO k=1,Natoms
+        DO j=1,3
+          acc=0.d0
+          DO i=1,Natoms
+            if(i.ne.k) then
+              Uexp6=(sigma/distance(k,i))**6
+              accith=(Uexp6-2.d0*Uexp6*Uexp6)*((coord(k,j)-coord(i,j))/distance(k,i))*(1.d0/distance(k,i))
+              acc=acc+accith
+            endif
+          enddo
+            acceleration(k,j)=-24.d0*epsilon*mass(k)*acc
+        enddo
+      enddo
+       DO i=1,Natoms
+        write(6, *) (acceleration(i,j), j=1,3)
+      END DO
+      end subroutine compute_acc
+     
 end program dynamics
