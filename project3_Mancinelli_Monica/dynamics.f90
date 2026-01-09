@@ -70,7 +70,7 @@
       Etot=E(Vljtot,Ttot)
       call compute_acc(Natoms, mass, acceleration, coord, distance, sigma, epsilon)
       call Verlet(Natoms, coord, mass, distance, velocity, acceleration, acc, sigma, epsilon, deltat,Nstep, symbol) 
-      
+
 !----starts the part of the program where that builds the trajectory-----------------------------------------------!
 contains
       integer function read_Natoms(input_file) result(atoms)
@@ -236,4 +236,4 @@ contains
       end function E
 !---------------------------------------------------------------------------------------------------------------------!
 
-end program dynamics
+      end program dynamics
