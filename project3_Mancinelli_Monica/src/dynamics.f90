@@ -1,6 +1,22 @@
+! Program to simulate the atoms' dynamics with Lennard-Jones potential.
+! Copyright (C) 2026 Monica Mancinelli
+!
+! This program is free software; you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation; either version 2 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License along
+! with this program; if not, write to the Free Software Foundation, Inc.,
+! 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+! Contact: monica.mancinelli.studenti.unipg.it
+ 
       program dynamics
-!dynamic program that allows to write the trajectory of Natoms, with Nsteps!
-!given the initial coordinates and with the starting velocities set to zero!
       implicit none
       integer :: input_file, Natoms,i,j, i_stat, Nstep
       character(len=3) :: symbol
@@ -10,7 +26,7 @@
       double precision, allocatable :: velocity(:,:)
       double precision, allocatable :: acceleration(:,:)
       double precision, allocatable :: acc(:,:)
-      double precision :: epsilon, sigma, Vljtot, Ttot, Etot, deltat
+      double precision :: epsilon, sigma, deltat, Vljtot, Etot, Ttot
       input_file = 9
 !-----input and output files------------------------------------------------------------------------------------------!
       open(input_file, file='inp.txt')
@@ -56,22 +72,21 @@
                 print *,  "Memory allocation failed, for acc!"
                 stop
       end if
-!-----end of the allocation part--------------------------------------------------------------------------------------!
-
+!-----end of the allocation part------------------------------------------------------------------------------------!
+!-----subroutines call that set the initial conditions and the starting of the trajectory---------------------------! 
       call read_molecule(input_file, Natoms, coord, mass)
       call compute_distances(Natoms, coord, distance)
-      Vljtot=V(epsilon, sigma, Natoms, distance)
-      DO j=1,3
-        DO i=1,Natoms
-          velocity(i,j)=0.d0!velocities are initially set to zero
-        END DO
-      ENDDO
-      Ttot=T(Natoms, velocity, mass)
-      Etot=E(Vljtot,Ttot)
       call compute_acc(Natoms, mass, acceleration, coord, distance, sigma, epsilon)
       call Verlet(Natoms, coord, mass, distance, velocity, acceleration, acc, sigma, epsilon, deltat,Nstep, symbol) 
+!-------------------------------------------------------------------------------------------------------------------!
 
-!----starts the part of the program where that builds the trajectory-----------------------------------------------!
+!-----Once the arrays are not used anymore the memory is freed------------------------------------------------------!      
+      deallocate(coord, mass, distance, velocity, acceleration, acc)
+!-------------------------------------------------------------------------------------------------------------------!
+      close(input_file)
+      close(8)
+      close(10)
+!----starts the part of the program where that builds the trajectory------------------------------------------------!
 contains
       integer function read_Natoms(input_file) result(atoms)
       implicit none
@@ -115,17 +130,22 @@ contains
       double precision, intent(inout) :: acceleration(Natoms,3)
       double precision, intent(inout) :: velocity(Natoms,3)
       double precision :: acc(Natoms,3)
+      do j=1,3
+        do i=1,Natoms
+          velocity(i,j)=0.d0!velocities are initially set to zero
+          end do
+      end do
       g=0
-      DO k=0,Nstep-1     
-        DO j=1,Natoms
-          DO i=1,3 
-           acc(j,i)=acceleration(j,i)
-           coord(j,i)=coord(j,i)+velocity(j,i)*deltat+acc(j,i)*(deltat**2/2.d0)
+      do k=0,Nstep-1     
+        do j=1,Natoms
+           do i=1,3 
+             acc(j,i)=acceleration(j,i)
+             coord(j,i)=coord(j,i)+velocity(j,i)*deltat+acc(j,i)*(deltat**2/2.d0)
            enddo
         enddo
         call compute_acc(Natoms, mass, acceleration, coord, distance, sigma, epsilon)
-        DO j=1,Natoms
-          DO i=1,3
+        do j=1,Natoms
+          do i=1,3
            velocity(j,i)=velocity(j,i)+0.5d0*deltat*(acc(j,i)+acceleration(j,i))
           enddo
         enddo
@@ -136,7 +156,7 @@ contains
           g=g+10
           write(10,*) Natoms
           write(10,*)  'E=', Etot, 'V=', Vljtot, 'T=',Ttot
-          DO j=1,Natoms
+          do j=1,Natoms
             write(10,*) symbol, coord(j,1)*10d0, coord(j,2)*10d0, coord(j,3)*10d0 ! from nanometers to angstrom
           end do
         endif
@@ -151,9 +171,9 @@ contains
       double precision acc, Uexp6, accith
       integer i, j , k
       double precision, intent(in) :: epsilon, sigma
-      double precision :: coord(Natoms,3)
+      double precision, intent(inout) :: coord(Natoms,3)
       double precision, intent(in) :: mass(Natoms)
-      double precision :: distance(Natoms,Natoms)
+      double precision, intent(inout) :: distance(Natoms,Natoms)
       double precision, intent(out) :: acceleration(Natoms,3)
       call  compute_distances(Natoms, coord, distance)
       do k=1,Natoms
@@ -180,16 +200,14 @@ contains
       integer, intent(in) :: Natoms
       double precision, intent(in) :: coord(Natoms,3)
       double precision, intent(out) :: distance(Natoms,Natoms)
-      DO j=1,Natoms
-        DO i=1,Natoms
-          if(i<j) then
-            distance(j,i)=distance(i,j) !symmetric matrix
-          end if
+      do j=1, Natoms
+        do i=j+1, Natoms !symmetry
           diff=0.d0
-          DO k=1,3
-            diff=diff+(coord(j,k)-coord(i,k))**2
+          do k=1, 3
+            diff=diff+(coord(i,k)-coord(j,k))**2
           end do
-          distance(j,i)=sqrt(diff)
+          distance(i,j) = sqrt(diff)
+          distance(j,i) = distance(i,j)
         end do
       end do
       end subroutine compute_distances
@@ -217,13 +235,14 @@ contains
 !-----double precision function that calculates the kinetic energy based on the atoms mass and velocities-------------!
       double precision function T(Natoms, velocity, mass) result(K)
       implicit none
+      integer :: i
       integer, intent(in) :: Natoms
       double precision, intent(in) :: velocity(Natoms,3)
       double precision, intent(in) :: mass(Natoms)
       K=0.d0
-      DO i=1,Natoms
+      do i=1,Natoms
         K=K+mass(i)*(velocity(i,1)**2+velocity(i,2)**2+velocity(i,3)**2)
-      END DO
+      end do
       K=0.5d0*K
       end function T
 !---------------------------------------------------------------------------------------------------------------------!

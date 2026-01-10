@@ -13,7 +13,7 @@ The repository is organized as follows:
 * **README.md**: Describes the project, its physical background, and structure.
 * **INSTALL.md**: Contains instructions on how to compile and execute the code.
 * **AUTHORS**: Lists the contributors to this project.
-* **LICENSE**: Specifies the licensing terms for the software.
+* **LICENSE**: Specifies the licensing terms for the project.
 
 ### Program Overview: dynamics.f90
 
@@ -53,3 +53,10 @@ The program generates a `trajectory.xyz` file, writing every **10 steps**:
 1. The total number of atoms.
 2. A comment line Containing Kinetic, Potential, and Total Energy values to verify energy conservation.
 3. A line for each atom including the chemical symbol followed by its X, Y, and Z coordinates in Å.
+
+The animation of the trajectory can be visualized with molden by using:
+
+```bash
+molden dynamics.f90 
+```
+Once inside molden you can press `movie` to see the trajectory and `Geom. conv.` to see if the energy is conserved.
